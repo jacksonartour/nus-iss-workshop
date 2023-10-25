@@ -1,0 +1,137 @@
+---
+# Create the namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bggns
+  labels:
+    app: bgg
+
+---
+# Create the config map to store variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bgg-cm
+  namespace: bggns
+  labels:
+    app: bgg
+data:
+  BGG_DB_USER: root
+  BGG_DB_HOST: bggdb-svc.bggns.svc.cluster.local
+
+---
+# Create secrets for hidden password
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bgg-secret
+  namespace: bggns
+  labels:
+    app: bgg
+type: Opaque
+data:
+  BGG_DB_PASSWORD: Y2hhbmdlaXQ=
+
+---
+# Create database deployment of 1 pod
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggdb-deploy
+  namespace: bggns
+  labels:
+    app: bgg 
+    namespace: bggns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bgg
+      name: bggdb-po
+  template:
+    metadata:
+      name: bggdb-po
+      labels:
+        app: bgg
+        name: bggdb-po
+    spec:
+      containers:
+      - name: bggdb-container
+        image: stackupiss/bgg-database:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+
+---
+# Create internal db service to link to db deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggdb-svc
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggdb-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: bgg
+    name: bggdb-po
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+# Create app deployment with 3 nodes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggapp-deploy
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggapp-deploy
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: bgg
+      name: bggapp-po
+  template:
+    metadata:
+      name: bggapp-po
+      labels:
+        app: bgg
+        name: bggapp-po
+    spec:
+      containers:
+      - name: bggapp-container
+        image: stackupiss/bgg-backend:v2
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: bgg-cm
+        - secretRef:
+            name: bgg-secret
+        ports:
+        - containerPort: 3000
+
+---
+# Create app service to link to app db
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggapp-svc
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggapp-svc
+spec:
+  type: LoadBalancer
+  selector:
+    app: bgg
+    name: bggapp-po
+  ports:
+  - port: 3000
+    targetPort: 3000
