@@ -1,0 +1,90 @@
+---
+# Create a Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: codeserver-pvc
+  namespace: codeserver-ns
+  labels:
+    app: codeserver
+spec:
+  storageClassName: do-block-storage  # Specify the storageClassName here
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Create a Deployment with 1 replica
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codeserver-deploy
+  namespace: codeserver-ns
+  labels:
+    app: codeserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: codeserver
+  template:
+    metadata:
+      name: codeserver-pod
+      labels:
+        app: codeserver
+    spec:
+      volumes:
+        - name: codeserver-vol
+          persistentVolumeClaim:
+            claimName: codeserver-pvc  # Reference the PVC by name
+      containers:
+        - name: codeserver-container
+          image: linuxserver/code-server:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: codeserver-cm
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: codeserver-vol
+              mountPath: /config/workspace
+---
+# Create a service that links to the deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: codeserver-svc
+  namespace: codeserver-ns
+  labels:
+    app: codeserver
+spec:
+  type: ClusterIP
+  selector:
+    app: codeserver
+  ports:
+    - port: 8443
+      targetPort: 8443
+---
+# Create an ingress to route to the service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: codeserver-ing
+  namespace: codeserver-ns
+  labels:
+    app: codeserver
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: code-167.99.29.22.nip.io
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: codeserver-svc
+              port:
+                number: 8443

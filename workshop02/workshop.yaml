@@ -135,3 +135,20 @@ spec:
   ports:
   - port: 3000
     targetPort: 3000
+
+---
+# Additional ingress service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bggapp-ing
+  namespace:  bggns
+  labels:
+    app:  bgg
+    name: bggapp-ing
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: http://bgg-146.190.201.120.nio.io
+      http:
+        paths:

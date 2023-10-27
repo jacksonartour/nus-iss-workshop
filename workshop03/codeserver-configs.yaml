@@ -1,0 +1,25 @@
+---
+# Create the ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codeserver-cm
+  namespace: codeserver-ns
+data:
+  TZ: Asia/Singapore
+  PROXY_DOMAIN: code-167.99.29.22.nip.io
+  DEFAULT_WORKPACE: /config/workspace
+---
+# Create secrets to store password
+apiVersion: v1 
+kind: Secret 
+metadata:
+  name: codeserver-secret
+  namespace: codeserver-ns
+  labels:
+    app: codeserver
+type: Opaque 
+data:
+  PASSWORD: cGFzc3dvcmQK
+  SUDO_PASSWORD:  cGFzc3dvcmQK
+---
